@@ -16,14 +16,11 @@ public abstract class SelectionSort extends SortingAlgorithm {
 		if (currentIndex == DataGraph.DataGraph().getBackingArray().length) {
 			return true;
 		} else if (searchingIndex == DataGraph.DataGraph().getBackingArray().length) {
-			DataGraph.DataGraph().swap(currentIndex, maxIndexInSearch);
+			DataGraph.DataGraph().swap(currentIndex, maxIndexInSearch, true);
 			searching = false;
 		} else {
-			if (maxIndexInSearch == -1 || DataGraph.DataGraph().getBackingArray()[searchingIndex] <
-										  DataGraph.DataGraph().getBackingArray()[maxIndexInSearch]) {
+			if (maxIndexInSearch == -1 || !DataGraph.DataGraph().compare(searchingIndex, maxIndexInSearch)) {
 				maxIndexInSearch = searchingIndex;
-				DataGraph.DataGraph().setNumOfAccesses(DataGraph.DataGraph().getNumOfAccesses() + 2);
-				DataGraph.accessesLabel.setText("Accesses: " + DataGraph.DataGraph().getNumOfAccesses());
 			}
 			
 			searchingIndex++;

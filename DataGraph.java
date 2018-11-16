@@ -1,14 +1,23 @@
+import java.util.ArrayList;
+import java.util.Arrays;
+import javafx.application.Platform;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.text.Font;
 
 public class DataGraph {
 	private int barWidth;
 	private int maxBarHeight;
 	private int numOfAccesses;
+	private int numOfComparisons;
 	private int numOfSwaps;
 	private boolean isSorting;
 	
@@ -19,29 +28,28 @@ public class DataGraph {
 	
 	static int xPadding;
 	static int yPadding;
+	static int[] lastSwapped;
 	static Label sizeLabel;
 	static Label accessesLabel;
+	static Label comparisonsLabel;
 	static Label swapsLabel;
 	static Rectangle graphBorder;
+	static ComboBox<String> algorithmSelect;
+	static SwapBracket swappedInTick;
+	static DataOptions optionsDisplay;
 	
 	private static DataGraph singleton;
 	
 	static {
 		xPadding = 150;
 		yPadding = 100;
+		lastSwapped = new int[2];
 		
 		sizeLabel = new Label("Size: ");
-		sizeLabel.setLayoutX(5);
-		sizeLabel.setLayoutY(3);
-		sizeLabel.setFont(Font.font(16));
 		accessesLabel = new Label("Accesses: ");
-		accessesLabel.setLayoutX(5);
-		accessesLabel.setLayoutY(18);
-		accessesLabel.setFont(Font.font(16));
+		comparisonsLabel = new Label("Comparisons: ");
 		swapsLabel = new Label("Swaps: ");
-		swapsLabel.setLayoutX(5);
-		swapsLabel.setLayoutY(33);
-		swapsLabel.setFont(Font.font(16));
+		setLabels(sizeLabel, accessesLabel, comparisonsLabel, swapsLabel);
 		
 		graphBorder = new Rectangle(xPadding, yPadding,
 									Main.stageWidth - (2 * xPadding),
@@ -51,12 +59,25 @@ public class DataGraph {
 		graphBorder.setStrokeType(StrokeType.OUTSIDE);
 		graphBorder.setFill(Color.TRANSPARENT);
 		
+		algorithmSelect = new ComboBox<String>();
+		algorithmSelect.getItems().addAll(Algorithm.stringValues());
+		algorithmSelect.setPrefWidth(120);
+		algorithmSelect.setLayoutX((Main.stageWidth / 2) - algorithmSelect.getPrefWidth() - 5);
+		algorithmSelect.setLayoutY(Main.stageHeight - ((DataGraph.yPadding + 25) / 2));
+		
+		swappedInTick = new SwapBracket();
+		optionsDisplay = new DataOptions();
+		
 		singleton = null;
 	}
 	
 	public int getNumOfAccesses() { return numOfAccesses; }
 	public void setNumOfAccesses(int noa) {
 		numOfAccesses = noa;
+	}
+	public int getNumOfComparisons() { return numOfComparisons; }
+	public void setNumOfComparisons(int noc) {
+		numOfComparisons = noc;
 	}
 	public int getNumOfSwaps() { return numOfSwaps; }
 	public void setNumOfSwaps(int nos) {
@@ -71,6 +92,7 @@ public class DataGraph {
 		barWidth = (Main.stageWidth - (2 * xPadding)) / ba.length;
 		maxBarHeight = Main.stageHeight - (2 * yPadding);
 		numOfAccesses = 0;
+		numOfComparisons = 0;
 		numOfSwaps = 0;
 		isSorting = false;
 		backingArray = ba;
@@ -82,6 +104,7 @@ public class DataGraph {
 		
 		sizeLabel.setText("Size: "  + backingArray.length);
 		accessesLabel.setText("Accesses: 0");
+		comparisonsLabel.setText("Comparisons: 0");
 		swapsLabel.setText("Swaps: 0");
 	}
 	public Bar[] getBarArray() { return barArray; }
@@ -93,7 +116,15 @@ public class DataGraph {
 		currentAlgorithm = Algorithm.stringToAlgorithm(ca);
 	}
 	
-	public void swap(int firstIndex, int secondIndex) {
+	public boolean compare(int firstIndex, int secondIndex) {
+		numOfAccesses += 2;
+		accessesLabel.setText("Accesses: " + numOfAccesses);
+		numOfComparisons++;
+		comparisonsLabel.setText("Comparisons: " + numOfComparisons);
+		return backingArray[firstIndex] > backingArray[secondIndex];
+	}
+	
+	public void swap(int firstIndex, int secondIndex, boolean incrementAccesses) {
 		int tempElement = backingArray[firstIndex];
 		backingArray[firstIndex] = backingArray[secondIndex];
 		backingArray[secondIndex] = tempElement;
@@ -106,14 +137,43 @@ public class DataGraph {
 		barArray[firstIndex].getBarRect().setX(((double) firstIndex / maxValue) * (Main.stageWidth - (2 * xPadding)) + xPadding);
 		barArray[secondIndex].getBarRect().setX(((double) secondIndex / maxValue) * (Main.stageWidth - (2 * xPadding)) + xPadding);
 		
+		if (incrementAccesses) {
+			numOfAccesses += 2;
+			accessesLabel.setText("Accesses: " + numOfAccesses);
+		}
+		
 		numOfSwaps++;
 		swapsLabel.setText("Swaps: " + numOfSwaps);
-		numOfAccesses += 2;
-		accessesLabel.setText("Accesses: " + numOfAccesses);
+		lastSwapped[0] = firstIndex;
+		lastSwapped[1] = secondIndex;
+	}
+	
+	public void set(int index, int value) {
+		backingArray[index] = value;
+		
+		barArray[index].setElementValue(value);
+		double hue = ((double) value / backingArray.length) * 360;
+		
+		barArray[index].setBarShade(hue, 1.0, 1.0);
+		barArray[index].getBarRect().setHeight(((double) value / backingArray.length) * maxBarHeight);
+		barArray[index].getBarRect().setY(Main.stageHeight - yPadding - (((double) value / backingArray.length) * maxBarHeight));
+	}
+	
+	public static void setLabels(Label... labels) {
+		for (int i = 0; i < labels.length; i++) {
+			labels[i].setLayoutX(5);
+			labels[i].setLayoutY((i * 18) + 3);
+			labels[i].setFont(Font.font(16));
+		}
 	}
 	
 	public static Node[] getNodes() {
-		return new Node[]{graphBorder, sizeLabel, accessesLabel, swapsLabel};
+		ArrayList<Node> allNodes = new ArrayList<Node>();
+		allNodes.addAll(Arrays.asList(graphBorder, sizeLabel, accessesLabel, comparisonsLabel, swapsLabel, algorithmSelect));
+		allNodes.addAll(Arrays.asList(swappedInTick.getNodes()));
+		allNodes.addAll(Arrays.asList(optionsDisplay.getNodes()));
+		
+		return allNodes.toArray(new Node[allNodes.size()]);
 	}
 	
 	public static DataGraph DataGraph() {
@@ -159,10 +219,138 @@ public class DataGraph {
 			}
 			
 			barShade = Color.hsb(hue, saturation, brightness);
+			barRect.setFill(barShade);
 		}
 		public Rectangle getBarRect() { return barRect; }
 		public void setBarRect(Rectangle br) {
 			barRect = br;
+		}
+	}
+	
+	static class SwapBracket {
+		private Line firstIndexLine;
+		private Line secondIndexLine;
+		private Line connectingLine;
+		
+		public SwapBracket() {
+			firstIndexLine = new Line();
+			firstIndexLine.setStartY(Main.stageHeight - yPadding + 10);
+			firstIndexLine.setEndY(Main.stageHeight - yPadding + 20);
+			
+			secondIndexLine = new Line();
+			secondIndexLine.setStartY(Main.stageHeight - yPadding + 10);
+			secondIndexLine.setEndY(Main.stageHeight - yPadding + 20);
+			
+			connectingLine = new Line();
+			connectingLine.setStartY(Main.stageHeight - yPadding + 20);
+			connectingLine.setEndY(Main.stageHeight - yPadding + 20);
+		}
+		
+		public Line getFirstIndexLine() { return firstIndexLine; }
+		public void setFirstIndexLine(Line fil) {
+			firstIndexLine = fil;
+		}
+		public Line getSecondIndexLine() { return secondIndexLine; }
+		public void setSecondIndexLine(Line sil) {
+			secondIndexLine = sil;
+		}
+		public Line getConnectingLine() { return connectingLine; }
+		public void setConnectingLine(Line cl) {
+			connectingLine = cl;
+		}
+		
+		public void updateLines() {
+			Rectangle firstRect = singleton.getBarArray()[lastSwapped[0]].getBarRect();
+			firstIndexLine.setStartX(firstRect.getX() + (0.5 * firstRect.getWidth()));
+			firstIndexLine.setEndX(firstIndexLine.getStartX());
+			
+			Rectangle secondRect = singleton.getBarArray()[lastSwapped[1]].getBarRect();
+			secondIndexLine.setStartX(secondRect.getX() + (0.5 * secondRect.getWidth()));
+			secondIndexLine.setEndX(secondIndexLine.getStartX());
+			
+			connectingLine.setStartX(firstIndexLine.getEndX());
+			connectingLine.setEndX(secondIndexLine.getEndX());
+		}
+		
+		public void setLines(Line... lines) {
+			for (Line l : lines) {
+				l.setStroke(Color.RED);
+				l.setStrokeWidth(3);
+				l.setStrokeLineCap(StrokeLineCap.ROUND);
+			}
+		}
+		
+		public Node[] getNodes() {
+			return new Node[]{firstIndexLine, secondIndexLine, connectingLine};
+		}
+	}
+	
+	static class DataOptions {
+		private boolean lockedListener;
+		private TextField sizeBox;
+		private TextField randomInitialSwapsBox;
+		private CheckBox startSortedCheck;
+		
+		public DataOptions() {
+			lockedListener = false;
+			
+			sizeBox = new TextField();
+			sizeBox.setLayoutX(40);
+			sizeBox.setLayoutY(3);
+			sizeBox.setMaxWidth(60);
+			sizeBox.setPromptText("Set Size");
+			sizeBox.setText("700");
+			
+			randomInitialSwapsBox = new TextField();
+			randomInitialSwapsBox.setLayoutX(5);
+			randomInitialSwapsBox.setLayoutY(DataGraph.yPadding);
+			randomInitialSwapsBox.setMaxWidth(DataGraph.xPadding - 10);
+			randomInitialSwapsBox.setPromptText("Random Initial Swaps");
+			randomInitialSwapsBox.setDisable(true);
+			
+			startSortedCheck = new CheckBox("Start Sorted");
+			startSortedCheck.setLayoutX(5);
+
+			Platform.runLater(() -> {
+				startSortedCheck.setLayoutY(DataGraph.yPadding + randomInitialSwapsBox.getHeight() + 5);
+			});
+			
+			sizeBox.textProperty().addListener((obs, oldValue, newValue) -> {
+				if (!lockedListener && !(newValue.isEmpty() || newValue.matches("(0|[1-9]\\d*)"))) {
+					lockedListener = true;
+					sizeBox.setText(oldValue);
+					lockedListener = false;
+				}
+			});
+			
+			randomInitialSwapsBox.textProperty().addListener((obs, oldValue, newValue) -> {
+				if (!lockedListener && !(newValue.isEmpty() || newValue.matches("(0|[1-9]\\d*)"))) {
+					lockedListener = true;
+					randomInitialSwapsBox.setText(oldValue);
+					lockedListener = false;
+				}
+			});
+			
+			startSortedCheck.selectedProperty().addListener((obs, oldValue, newValue) -> {
+				randomInitialSwapsBox.setDisable(!newValue);
+			});
+		}
+		
+		public TextField getSizeBox() { return sizeBox; }
+		public void setSizeBox(TextField sb) {
+			sizeBox = sb;
+		}
+		public TextField getRandomInitialSwapsBox() { return randomInitialSwapsBox; }
+		public void setRandomInitialSwapsBox(TextField risb) {
+			randomInitialSwapsBox = risb;
+		}
+		public CheckBox getStartSortedCheck() { return startSortedCheck; }
+		public void setStartSortedCheck(CheckBox ssc) {
+			startSortedCheck = ssc;
+		}
+		
+		public Node[] getNodes() {
+			return new Node[]{ sizeBox, randomInitialSwapsBox, startSortedCheck };
 		}
 	}
 }

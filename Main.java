@@ -5,8 +5,10 @@ import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.scene.control.Button;
@@ -21,8 +23,8 @@ public class Main extends Application {
 	
 	public static int stageWidth = 1000;
 	public static int stageHeight = 600;
-	public static int sortingSpeed = 0;
-	public static String currentAlgorithm = "Insertion Sort";
+	public static boolean nextArray = false;
+	public static String currentAlgorithm;
 	
 	public static Random randVar = new Random();
 	public static AnimationTimer timer = null;
@@ -43,25 +45,22 @@ public class Main extends Application {
 			root.getChildren().add(DataGraph.DataGraph().getBarArray()[i].getBarRect());
 		}
 		
-		Button startButton = new Button("Start");
-		root.getChildren().add(startButton);
-		
 		for (int i = 10; i <= 700; i++) {
 			if (700 % i == 0) {
 				multiplesOf700.add(i);
 			}
 		}
 		
-		Platform.runLater(() -> {
-			startButton.setLayoutX((stageWidth - startButton.getWidth()) / 2);
-			startButton.setLayoutY(stageHeight - ((DataGraph.yPadding + 25) / 2));
-		});
+		Button startButton = new Button("Start");
+		startButton.setLayoutX((stageWidth / 2) + 5);
+		startButton.setLayoutY(stageHeight - ((DataGraph.yPadding + 25) / 2));
+		root.getChildren().add(startButton);
 		
 		startButton.setOnAction(new EventHandler<ActionEvent>() {
 			public void handle(ActionEvent event) {
 				if (startButton.getText().equals("Start")) {
 					if (!DataGraph.DataGraph().getIsSorting()) {
-						currentAlgorithm = Algorithm.algorithmToString(Algorithm.values()[randVar.nextInt(3)]);
+						currentAlgorithm = DataGraph.algorithmSelect.getValue();
 						SortingAlgorithm.reset(currentAlgorithm);
 						DataGraph.DataGraph().setCurrentAlgorithm(currentAlgorithm);
 					}
@@ -76,14 +75,23 @@ public class Main extends Application {
 						root.getChildren().remove(b.getBarRect());
 					}
 					
-					DataArrayGeneration.generateArray(multiplesOf700.get(randVar.nextInt(multiplesOf700.size())));
+					String ris = DataGraph.DataGraph().optionsDisplay.getRandomInitialSwapsBox().getText();
+					
+					if (ris.isEmpty()) {
+						ris = "0";
+					}
+					
+					DataArrayGeneration.setStartSorted(DataGraph.DataGraph().optionsDisplay.getStartSortedCheck().isSelected());
+					DataArrayGeneration.setRandomInitialSwaps(Integer.valueOf(ris));
+					//DataArrayGeneration.generateArray(multiplesOf700.get(randVar.nextInt(multiplesOf700.size())));
+					DataArrayGeneration.generateArray(Integer.valueOf(DataGraph.DataGraph().optionsDisplay.getSizeBox().getText()));
 					DataGraph.DataGraph().setBackingArray(DataArrayGeneration.getGeneratedArray());
 					
 					for (DataGraph.Bar b : DataGraph.DataGraph().getBarArray()) {
 						root.getChildren().add(b.getBarRect());
 					}
 					
-					sortingSpeed = 1;
+					setNodesVisible(true, DataGraph.swappedInTick.getNodes());
 					startButton.setText("Start");
 				}
 			}
@@ -95,7 +103,22 @@ public class Main extends Application {
 				final Algorithm currentAlg = DataGraph.DataGraph().getCurrentAlgorithm();
 				boolean finished = false;
 				
-				for (int i = 0; i < 2 * Math.pow(DataGraph.DataGraph().getBackingArray().length , 2) / 1500; i++) {
+				double asymptoticBehavior = 0;
+				int dataLength = DataGraph.DataGraph().getBackingArray().length;
+				
+				switch (currentAlg.getTimeComplexity()) {
+					case "n^2":
+						asymptoticBehavior = Math.pow(dataLength, 2);
+						break;
+					case "nlogn":
+						asymptoticBehavior = dataLength * Math.log(dataLength);
+						break;
+					default:
+						asymptoticBehavior = 750;
+						break;
+				}
+				
+				for (int i = 0; i < asymptoticBehavior / 750; i++) {
 					switch (currentAlg) {
 						case BUBBLE_SORT:
 							finished = BubbleSort.iterateSort();
@@ -106,17 +129,19 @@ public class Main extends Application {
 						case SELECTION_SORT:
 							finished = SelectionSort.iterateSort();
 							break;
+						case COMB_SORT:
+							finished = CombSort.iterateSort();
+							break;
+						case MERGE_SORT:
+							finished = MergeSort.iterateSort();
+							break;
 						default:
 							break;
 					}
 					
 					if (finished) {
 						startButton.setText("Reset");
-						
-						Platform.runLater(() -> {
-							reset(root);
-						});
-						
+						nextArray = true;
 						timer.stop();
 						break;
 					}
@@ -124,7 +149,27 @@ public class Main extends Application {
 					finished = true;
 				}
 				
-				sortingSpeed += 2;
+				if (DataGraph.lastSwapped[0] != -1) {
+					DataGraph.swappedInTick.updateLines();
+					DataGraph.lastSwapped[0] = -1;
+					DataGraph.lastSwapped[1] = -1;
+				}
+				
+				if (nextArray) {
+					nextArray = false;
+					setNodesVisible(false, DataGraph.swappedInTick.getNodes());
+					
+					/*Platform.runLater(() -> {
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException ie) {
+						}
+						
+						for (int j = 0; j < 2; j++) {
+							Event.fireEvent(startButton, new ActionEvent());
+						}
+					});*/
+				}
 			}
 		};
 		
@@ -133,38 +178,9 @@ public class Main extends Application {
 		primaryStage.show();
 	}
 	
-	private void start() {
-		if (!DataGraph.DataGraph().getIsSorting()) {
-			currentAlgorithm = Algorithm.algorithmToString(Algorithm.values()[randVar.nextInt(3)]);
-			SortingAlgorithm.reset(currentAlgorithm);
-			DataGraph.DataGraph().setCurrentAlgorithm(currentAlgorithm);
+	public static void setNodesVisible(boolean visible, Node... nodes) {
+		for (Node n : nodes) {
+			n.setVisible(visible);
 		}
-		
-		//startButton.setText("Stop");
-		timer.start();
-	}
-	
-	private void reset(Group root) {
-		for (DataGraph.Bar b : DataGraph.DataGraph().getBarArray()) {
-			root.getChildren().remove(b.getBarRect());
-		}
-		
-		DataArrayGeneration.generateArray(multiplesOf700.get(randVar.nextInt(multiplesOf700.size())));
-		DataGraph.DataGraph().setBackingArray(DataArrayGeneration.getGeneratedArray());
-		
-		for (DataGraph.Bar b : DataGraph.DataGraph().getBarArray()) {
-			root.getChildren().add(b.getBarRect());
-		}
-		
-		sortingSpeed = 1;
-		
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException ie) {
-		}
-		
-		Platform.runLater(() -> {
-			start();
-		});
 	}
 }

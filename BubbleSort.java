@@ -7,7 +7,7 @@ public abstract class BubbleSort extends SortingAlgorithm {
 	
 	public static boolean iterateSort() {
 		if (currentIndex == upperBound) {
-			if (swapPerformed) {
+			if (swapPerformed && upperBound != 1) {
 				currentIndex = 0;
 				upperBound--;
 				swapPerformed = false;
@@ -16,8 +16,8 @@ public abstract class BubbleSort extends SortingAlgorithm {
 			}
 		}
 		
-		if (DataGraph.DataGraph().getBackingArray()[currentIndex] > DataGraph.DataGraph().getBackingArray()[currentIndex + 1]) {
-			DataGraph.DataGraph().swap(currentIndex, currentIndex + 1);
+		if (DataGraph.DataGraph().compare(currentIndex, currentIndex + 1)) {
+			DataGraph.DataGraph().swap(currentIndex, currentIndex + 1, false);
 			swapPerformed = true;
 		}
 		
