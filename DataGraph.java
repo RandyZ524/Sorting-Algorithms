@@ -33,6 +33,7 @@ public class DataGraph {
 	static Label accessesLabel;
 	static Label comparisonsLabel;
 	static Label swapsLabel;
+	static Label trialsLabel;
 	static Rectangle graphBorder;
 	static ComboBox<String> algorithmSelect;
 	static SwapBracket swappedInTick;
@@ -49,7 +50,8 @@ public class DataGraph {
 		accessesLabel = new Label("Accesses: ");
 		comparisonsLabel = new Label("Comparisons: ");
 		swapsLabel = new Label("Swaps: ");
-		setLabels(sizeLabel, accessesLabel, comparisonsLabel, swapsLabel);
+		trialsLabel = new Label("Trials: ");
+		setLabels(sizeLabel, accessesLabel, comparisonsLabel, swapsLabel, trialsLabel);
 		
 		graphBorder = new Rectangle(xPadding, yPadding,
 									Main.stageWidth - (2 * xPadding),
@@ -169,7 +171,8 @@ public class DataGraph {
 	
 	public static Node[] getNodes() {
 		ArrayList<Node> allNodes = new ArrayList<Node>();
-		allNodes.addAll(Arrays.asList(graphBorder, sizeLabel, accessesLabel, comparisonsLabel, swapsLabel, algorithmSelect));
+		allNodes.addAll(Arrays.asList(graphBorder, sizeLabel, accessesLabel, comparisonsLabel, swapsLabel, trialsLabel,
+									  algorithmSelect));
 		allNodes.addAll(Arrays.asList(swappedInTick.getNodes()));
 		allNodes.addAll(Arrays.asList(optionsDisplay.getNodes()));
 		
